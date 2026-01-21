@@ -1,6 +1,7 @@
 package maps.voice.gps.navigation.offline.driving.directions.route.composetest
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -89,7 +90,10 @@ class MainActivity : ComponentActivity() {
                     )*/
                     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         // 场景 1: 左短右长 -> 左边只占一点，右边占据绝大部分
-                        SmartTwoTexts("Short", "This is a very very long text that will definitely wrap")
+                        SmartTwoTexts(
+                            "Short",
+                            "This is a very very long text that will definitely wrap"
+                        )
 
                         // 场景 2: 左长右短 -> 右边只占一点，左边占据绝大部分
 //        SmartTwoTexts("This is a very very long text that will definitely wrap", "Short")
@@ -161,8 +165,10 @@ fun SmartTwoTexts(
             )
             VerticalDivider(
                 color = Color.Black,
+                thickness = 1.dp,
                 modifier = Modifier
-                    .width(1.dp)
+                    .padding(horizontal = 4.dp)
+
             )
             Text(
                 text = text2,
@@ -179,10 +185,8 @@ fun SmartTwoTexts(
         val text2Measurable = measurables[2]
 
 
-        // 2. 只有中间的 Divider 宽度是固定的，先测量它
-        // 使用 loose 约束，让 divider 自己决定宽度 (通常是 1dp)
-//        val dividerPlaceable = dividerMeasurable.measure(constraints.copy(minWidth = 0))
         val dividerWidth = dividerMeasurable.minIntrinsicWidth(constraints.maxHeight)
+//        val dividerWidth = 100
 
         // 3. 计算文本可用的总宽度和半宽阈值
         val totalTextWidth = (constraints.maxWidth - dividerWidth).coerceAtLeast(0)
@@ -191,7 +195,9 @@ fun SmartTwoTexts(
         // 4. 【核心逻辑】询问两个文本的“理想单行宽度” (Intrinsic Query)
         // maxIntrinsicWidth: 问它“给你无限宽，你实际单行有多长？”
         val t1Desired = text1Measurable.maxIntrinsicWidth(constraints.maxHeight)
+//        val t1Desired = 100
         val t2Desired = text2Measurable.maxIntrinsicWidth(constraints.maxHeight)
+//        val t2Desired = 100
 
         // 5. 决策分配宽度的逻辑
         val t1Width: Int
@@ -211,8 +217,7 @@ fun SmartTwoTexts(
             t2Width = totalTextWidth - t1Width // 剩下的给右边 (避免除法精度丢失像素)
         }
 
-        val dividerMiddleGap =
-            kotlin.math.max(0, (totalTextWidth - t1Width - t2Width) / 2)
+        val dividerMiddleGap = ((totalTextWidth - t1Width - t2Width) / 2).coerceAtLeast(0)
 
         // 6. 带着算好的宽度，正式测量两个文本
         val text1Placeable = text1Measurable.measure(
@@ -228,7 +233,12 @@ fun SmartTwoTexts(
         // 8. 重新测量 Divider (为了让它 fillMaxHeight)
         // 注意：Divider 之前只是测量了宽度，现在我们需要给它具体的高度约束
         val finalDividerPlaceable = dividerMeasurable.measure(
-            Constraints.fixed(width = dividerWidth, height = maxHeight)
+            Constraints.fixedHeight(maxHeight)
+        )
+
+        Log.d(
+            "tt_test",
+            "SmartTwoTexts: dividerWidth=$dividerWidth finalDividerPlaceable=${finalDividerPlaceable.width} measuredWidth=${finalDividerPlaceable.measuredWidth}"
         )
 
         // 9. 布局摆放 (Layout Phase)
@@ -301,6 +311,49 @@ fun SmartSplitPreview2() {
                 }
             )
         }
+    }
+}
+
+@Composable
+fun MyBasicColumn(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Layout(
+        modifier = modifier,
+        content = content
+    ) { measurables, constraints ->
+        // Don't constrain child views further, measure them with given constraints
+        // List of measured children
+        val placeables = measurables.map { measurable ->
+            // Measure each children
+            measurable.measure(constraints)
+        }
+
+        // Set the size of the layout as big as it can
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            // Track the y co-ord we have placed children up to
+            var yPosition = 0
+
+            // Place children in the parent layout
+            placeables.forEach { placeable ->
+                // Position item on the screen
+                placeable.placeRelative(x = 0, y = yPosition)
+
+                // Record the y co-ord placed up to
+                yPosition += placeable.height
+            }
+        }
+    }
+}
+
+@Composable
+fun CallingComposable(modifier: Modifier = Modifier) {
+    MyBasicColumn(modifier.padding(8.dp)) {
+        Text("MyBasicColumn")
+        Text("places items")
+        Text("vertically.")
+        Text("We've done it by hand!")
     }
 }
 
